@@ -1,0 +1,18 @@
+schema: '2.0'
+stages:
+  data_cleaning:
+    cmd: python spotify_recommender/data_cleaning.py
+    deps:
+    - path: data/raw/Music_Info.csv
+      hash: md5
+      md5: e63b74919a3cdada5c804df4666391c9
+      size: 14985870
+    - path: spotify_recommender/data_cleaning.py
+      hash: md5
+      md5: 945cb6261ba07cd1394cf746ea1bff19
+      size: 7663
+    outs:
+    - path: data/interim/Music_Info.csv
+      hash: md5
+      md5: b5e99f8fcf0e54fa347c97490c779d67
+      size: 13709636
