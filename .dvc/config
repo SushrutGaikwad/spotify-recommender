@@ -1,0 +1,4 @@
+[core]
+    remote = s3_bucket
+['remote "s3_bucket"']
+    url = s3://spotify-recommender-dvc-remote
