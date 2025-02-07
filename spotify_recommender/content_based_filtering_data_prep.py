@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
         # Save the prepared data
         logger.info(f"Saving the prepared data to '{CLEANED_MUSIC_DATA_CBF}'...")
-        cbf_data.to_csv(CLEANED_MUSIC_DATA_CBF)
+        cbf_data.to_csv(CLEANED_MUSIC_DATA_CBF, index=False)
         logger.info("Data saved successfully.")
 
         logger.info("Data preparation process for content-based filtering completed successfully!")
