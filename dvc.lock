@@ -9,10 +9,26 @@ stages:
       size: 14985870
     - path: spotify_recommender/data_cleaning.py
       hash: md5
-      md5: 945cb6261ba07cd1394cf746ea1bff19
-      size: 7663
+      md5: 30b97910d0c08079591af5e1e117d7be
+      size: 7793
     outs:
-    - path: data/interim/Music_Info.csv
+    - path: data/interim/Music_Info_cleaned.csv
       hash: md5
       md5: b5e99f8fcf0e54fa347c97490c779d67
       size: 13709636
+  data_preparation_cbf:
+    cmd: python spotify_recommender/content_based_filtering_data_prep.py
+    deps:
+    - path: data/interim/Music_Info_cleaned.csv
+      hash: md5
+      md5: b5e99f8fcf0e54fa347c97490c779d67
+      size: 13709636
+    - path: spotify_recommender/content_based_filtering_data_prep.py
+      hash: md5
+      md5: c2ebf8463b8efd9f70b97efcd295af7d
+      size: 4316
+    outs:
+    - path: data/interim/Music_Info_cleaned_CBF.csv
+      hash: md5
+      md5: 54e5a87318df4ab827ce5381d14547c4
+      size: 6803571

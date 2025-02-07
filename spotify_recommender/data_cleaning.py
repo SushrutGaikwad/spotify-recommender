@@ -6,7 +6,7 @@ from pathlib import Path
 
 from spotify_recommender.config import (
     RAW_MUSIC_DATA,
-    INTERIM_MUSIC_DATA,
+    CLEANED_MUSIC_DATA,
     DATA_CLEANING_DROP_DUPLICATES_SUBSET,
     DATA_CLEANING_COLS_TO_DROP,
     DATA_CLEANING_FILL_NA_VALS_DICT,
@@ -169,6 +169,8 @@ class DataCleaner:
                     data=data, columns=cols_to_lowercase
                 )
                 pbar.update(1)
+
+            logger.info("The method `clean_data` ran successfully.")
             return data
         except Exception as e:
             logger.error(f"Unexpected error in `clean_data`: {e}.")
@@ -177,7 +179,7 @@ class DataCleaner:
 
 if __name__ == "__main__":
     try:
-        logger.info("Starting data cleaning process..")
+        logger.info("Starting data cleaning process...")
 
         # Initialize DataCleaner object
         data_cleaner = DataCleaner(raw_data_path=RAW_MUSIC_DATA)
@@ -191,9 +193,10 @@ if __name__ == "__main__":
         )
 
         # Save cleaned data
-        logger.info(f"Saving the cleaned data to '{INTERIM_MUSIC_DATA}'...")
-        cleaned_data.to_csv(INTERIM_MUSIC_DATA, index=False)
+        logger.info(f"Saving the cleaned data to '{CLEANED_MUSIC_DATA}'...")
+        cleaned_data.to_csv(CLEANED_MUSIC_DATA, index=False)
+        logger.info("Data saved successfully.")
 
-        logger.info("Data cleaning completed successfully!")
+        logger.info("Data cleaning process completed successfully!")
     except Exception as e:
         logger.critical(f"Data cleaning process failed: {e}.")

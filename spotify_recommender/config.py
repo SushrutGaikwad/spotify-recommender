@@ -16,7 +16,8 @@ INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 RAW_MUSIC_DATA = RAW_DATA_DIR / "Music_Info.csv"
-INTERIM_MUSIC_DATA = INTERIM_DATA_DIR / "Music_Info.csv"
+CLEANED_MUSIC_DATA = INTERIM_DATA_DIR / "Music_Info_cleaned.csv"
+CLEANED_MUSIC_DATA_CBF = INTERIM_DATA_DIR / "Music_Info_cleaned_CBF.csv"
 
 MODELS_DIR = PROJ_ROOT / "models"
 
@@ -35,3 +36,6 @@ DATA_CLEANING_DROP_DUPLICATES_SUBSET: list = [
 DATA_CLEANING_COLS_TO_DROP: list = ["genre", "spotify_id"]
 DATA_CLEANING_FILL_NA_VALS_DICT: dict = {"tags": "no_tags"}
 DATA_CLEANING_COLS_TO_LOWERCASE: list = ["name", "artist", "tags"]
+
+# For preparing data for content based filtering
+CONTENT_BASED_FILTERING_DATA_PREP_COLS_TO_DROP: list = ["track_id", "name", "spotify_preview_url"]
