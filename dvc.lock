@@ -32,3 +32,23 @@ stages:
       hash: md5
       md5: 975f828b7bd4cfc6daf60c0ef3125b1f
       size: 6510636
+  data_transformation_cbf:
+    cmd: python spotify_recommender/content_based_filtering_data_transformation.py
+    deps:
+    - path: data/interim/Music_Info_cleaned_CBF.csv
+      hash: md5
+      md5: 975f828b7bd4cfc6daf60c0ef3125b1f
+      size: 6510636
+    - path: spotify_recommender/content_based_filtering_data_transformation.py
+      hash: md5
+      md5: f2f81f271022a28b891feed2ebc542b7
+      size: 9490
+    outs:
+    - path: data/processed/Music_Info_cleaned_transformed_CBF.npz
+      hash: md5
+      md5: 3b28c931c4f1a5b82beeb784c265cc3d
+      size: 4517729
+    - path: models/trained_transformer.joblib
+      hash: md5
+      md5: 93e7221f3f27052449fec5c8b28edd94
+      size: 200751
