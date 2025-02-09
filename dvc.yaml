@@ -23,3 +23,10 @@ stages:
     outs:
       - data/processed/Music_Info_cleaned_transformed_CBF.npz
       - models/trained_transformer.joblib
+  
+  content_based_filtering:
+    cmd: python spotify_recommender/content_based_filtering_recommendation.py
+    deps:
+      - spotify_recommender/content_based_filtering_recommendation.py
+      - data/interim/Music_Info_cleaned.csv
+      - data/processed/Music_Info_cleaned_transformed_CBF.npz

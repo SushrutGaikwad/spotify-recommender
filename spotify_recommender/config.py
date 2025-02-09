@@ -57,3 +57,6 @@ CONTENT_BASED_FILTERING_DATA_TRANS_MIN_MAX_SCALER_COLS: list = [
     "liveness",
     "valence",
 ]
+
+# For content-based filtering recommendation
+CONTENT_BASED_FILTERING_RECO_K: int = 10

@@ -1,0 +1,151 @@
+import numpy as np
+import pandas as pd
+
+from pathlib import Path
+from loguru import logger
+from tqdm.auto import tqdm
+from scipy.sparse import load_npz, spmatrix
+from sklearn.metrics.pairwise import cosine_similarity
+
+from spotify_recommender.config import (
+    CLEANED_MUSIC_DATA,
+    TRANSFORMED_MUSIC_DATA_CBF,
+    CONTENT_BASED_FILTERING_RECO_K,
+)
+
+
+class ContentBasedFilteringRecommender:
+    def __init__(self, cleaned_data_path: Path, transformed_data_path: Path) -> None:
+        """Initiates a `ContentBasedFilteringRecommender` object.
+
+        Args:
+            cleaned_data_path (Path): Path of the cleaned data.
+            transformed_data_path (Path): Path of the transformed data.
+        """
+        logger.info("Instantiating a `ContentBasedFilteringRecommender` object...")
+        self.cleaned_data_path = cleaned_data_path
+        self.transformed_data_path = transformed_data_path
+        logger.info("`ContentBasedFilteringRecommender` object successfully instantiated.")
+
+    def load_cleaned_data(self) -> pd.DataFrame:
+        """Loads the cleaned data.
+
+        Returns:
+            pd.DataFrame: Cleaned data.
+        """
+        try:
+            logger.info("Running the method `load_cleaned_data`...")
+            logger.info(f"Loading cleaned data from '{self.cleaned_data_path}'...")
+            cleaned_data = pd.read_csv(self.cleaned_data_path)
+            logger.info(
+                f"Cleaned data loaded successfully with {cleaned_data.shape[0]} rows and {cleaned_data.shape[1]} columns."
+            )
+            return cleaned_data
+        except FileNotFoundError:
+            logger.error(f"File '{self.cleaned_data_path}' not found.")
+            raise
+        except pd.errors.EmptyDataError:
+            logger.error("CSV file is empty.")
+            raise
+        except pd.errors.ParserError:
+            logger.error("Error parsing the CSV file.")
+            raise
+
+    def load_transformed_data(self) -> spmatrix:
+        """Loads the transformed data.
+
+        Returns:
+            spmatrix: Transformed data.
+        """
+        try:
+            logger.info("Running the method `load_transformed_data`...")
+            logger.info(f"Loading transformed data from '{self.transformed_data_path}'...")
+            data = load_npz(self.transformed_data_path)
+            logger.info("Transformed data loaded successfully.")
+            return data
+        except FileNotFoundError:
+            logger.error(f"File '{self.transformed_data_path}' not found.")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in `load_transformed_data`: {e}.")
+            raise
+
+    def calculate_similarity_scores(self, input_song: spmatrix, all_songs: spmatrix) -> np.ndarray:
+        """Calculates similarity scores of a song with all the songs using cosine similarity.
+
+        Args:
+            input_song (spmatrix): The input song.
+            all_songs (spmatrix): All the songs.
+
+        Returns:
+            np.ndarray: Similarity scores.
+        """
+        try:
+            logger.info("Running the method `calculate_similarity_scores`...")
+            with tqdm(total=1, desc="Calculating Similarity", unit="step") as pbar:
+                similarity_scores = cosine_similarity(input_song, all_songs)
+                pbar.update(1)
+            logger.info("Similarity scores calculated successfully.")
+            return similarity_scores
+        except Exception as e:
+            logger.error(f"Error in `calculate_similarity_scores`: {e}.")
+            raise
+
+    def recommend(self, song_name: str, k: int) -> pd.DataFrame:
+        """The orchestrator method that recommends songs using content-based filtering.
+
+        Args:
+            song_name (str): Name of the song to base the recommendation on.
+            k (int): Number of songs to recommend.
+
+        Returns:
+            pd.DataFrame: The top `k` song recommendations.
+        """
+        try:
+            logger.info("Running the method `recommend`...")
+            cleaned_data = self.load_cleaned_data()
+            transformed_data = self.load_transformed_data()
+
+            song_name = song_name.lower()
+            song_row = cleaned_data.loc[cleaned_data["name"] == song_name]
+
+            if song_row.empty:
+                logger.warning(f"Song '{song_name}' not found in dataset.")
+                raise ValueError(f"Song '{song_name}' not found in dataset.")
+
+            song_idx = song_row.index[0]
+            input_song_vector = transformed_data[song_idx].reshape(1, -1)
+
+            similarity_scores = self.calculate_similarity_scores(
+                input_song=input_song_vector, all_songs=transformed_data
+            )
+
+            top_k_most_similar_songs_idxs = np.argsort(similarity_scores.ravel())[::-1][1:][:k]
+            top_k_most_similar_songs_name = cleaned_data.loc[top_k_most_similar_songs_idxs]
+            top_k_most_similar_songs_df = top_k_most_similar_songs_name[
+                ["name", "artist", "spotify_preview_url"]
+            ].reset_index(drop=True)
+            logger.info(f"Top-{k} recommendations generated successfully.")
+            return top_k_most_similar_songs_df
+        except ValueError as e:
+            logger.error(f"ValueError in `recommend`: {e}.")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in `recommend`: {e}.")
+            raise
+
+
+if __name__ == "__main__":
+    try:
+        logger.info("Starting content-based filtering recommendation process...")
+        cbf_recommender = ContentBasedFilteringRecommender(
+            cleaned_data_path=CLEANED_MUSIC_DATA, transformed_data_path=TRANSFORMED_MUSIC_DATA_CBF
+        )
+        recommendations = cbf_recommender.recommend(
+            song_name="Mockingbird", k=CONTENT_BASED_FILTERING_RECO_K
+        )
+        logger.info(f"Top-{CONTENT_BASED_FILTERING_RECO_K} song recommendations:")
+        logger.info(f"\n{recommendations}")
+        logger.info("Content-based filtering recommendation process completed successfully!")
+    except Exception as e:
+        logger.critical(f"Content-based filtering recommendation process failed: {e}.")
