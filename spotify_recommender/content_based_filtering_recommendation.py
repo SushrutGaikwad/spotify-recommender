@@ -10,6 +10,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from spotify_recommender.config import (
     CLEANED_MUSIC_DATA,
     TRANSFORMED_MUSIC_DATA_CBF,
+    CONTENT_BASED_FILTERING_RECO_SONG_NAME,
     CONTENT_BASED_FILTERING_RECO_K,
 )
 
@@ -25,6 +26,7 @@ class ContentBasedFilteringRecommender:
         logger.info("Instantiating a `ContentBasedFilteringRecommender` object...")
         self.cleaned_data_path = cleaned_data_path
         self.transformed_data_path = transformed_data_path
+        self.k = None
         logger.info("`ContentBasedFilteringRecommender` object successfully instantiated.")
 
     def load_cleaned_data(self) -> pd.DataFrame:
@@ -103,6 +105,7 @@ class ContentBasedFilteringRecommender:
         """
         try:
             logger.info("Running the method `recommend`...")
+            self.k = k
             cleaned_data = self.load_cleaned_data()
             transformed_data = self.load_transformed_data()
 
@@ -120,7 +123,7 @@ class ContentBasedFilteringRecommender:
                 input_song=input_song_vector, all_songs=transformed_data
             )
 
-            top_k_most_similar_songs_idxs = np.argsort(similarity_scores.ravel())[::-1][1:][:k]
+            top_k_most_similar_songs_idxs = np.argsort(similarity_scores.ravel())[::-1][: k + 1]
             top_k_most_similar_songs_name = cleaned_data.loc[top_k_most_similar_songs_idxs]
             top_k_most_similar_songs_df = top_k_most_similar_songs_name[
                 ["name", "artist", "spotify_preview_url"]
@@ -142,9 +145,9 @@ if __name__ == "__main__":
             cleaned_data_path=CLEANED_MUSIC_DATA, transformed_data_path=TRANSFORMED_MUSIC_DATA_CBF
         )
         recommendations = cbf_recommender.recommend(
-            song_name="Mockingbird", k=CONTENT_BASED_FILTERING_RECO_K
+            song_name=CONTENT_BASED_FILTERING_RECO_SONG_NAME, k=CONTENT_BASED_FILTERING_RECO_K
         )
-        logger.info(f"Top-{CONTENT_BASED_FILTERING_RECO_K} song recommendations:")
+        logger.info(f"Top-{cbf_recommender.k} song recommendations:")
         logger.info(f"\n{recommendations}")
         logger.info("Content-based filtering recommendation process completed successfully!")
     except Exception as e:

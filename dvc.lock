@@ -65,5 +65,5 @@ stages:
       size: 4517729
     - path: spotify_recommender/content_based_filtering_recommendation.py
       hash: md5
-      md5: c57e68b0abbca94fb5fe3d97a78dda94
-      size: 6314
+      md5: 119828dc9ee4d93e0320a1d3f6ff2e49
+      size: 6419

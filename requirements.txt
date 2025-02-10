@@ -15,4 +15,5 @@ scikit-learn
 category_encoders
 tqdm
 typer
+streamlit
 -e .
