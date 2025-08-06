@@ -5,6 +5,7 @@ isort
 jupyterlab
 loguru
 matplotlib
+seaborn
 mkdocs
 notebook
 numpy
@@ -16,4 +17,6 @@ category_encoders
 tqdm
 typer
 streamlit
+dask[complete]
+missingno
 -e .
