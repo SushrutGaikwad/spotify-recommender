@@ -18,6 +18,7 @@ tqdm
 typer
 streamlit
 dask[dataframe]
+graphviz
 missingno
 category_encoders
 -e .
