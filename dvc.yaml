@@ -1,8 +1,8 @@
 stages:
   data_cleaning:
-    cmd: python spotify_recommender/data_cleaning.py
+    cmd: python spotify_recommender/content_based_filtering/data_cleaning.py
     deps:
-      - spotify_recommender/data_cleaning.py
+      - spotify_recommender/content_based_filtering/data_cleaning.py
       - data/raw/Music_Info.csv
     outs:
       - data/interim/Music_Info_cleaned.csv
