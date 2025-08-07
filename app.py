@@ -163,25 +163,57 @@ class SpotifyRecommenderApp:
         """The orchestrator method that runs the app."""
         logger.info("Running the method `run`...")
         logger.info("Running the app...")
-        # Title
+
         st.title("🎵 Welcome to the Spotify Song Recommender!")
+        st.write("Start typing a song name to get suggestions. We'll recommend similar songs 😉🎧")
 
-        # Subheader
-        st.write("Enter the song name and we will recommend similar songs 😉🎧")
+        # Load cleaned data
+        cleaned_data = self.load_cleaned_data()
 
-        # Text input for song name
-        song_name = st.text_input("Enter the song name:")
+        if "name" not in cleaned_data.columns or "artist" not in cleaned_data.columns:
+            st.error("The dataset must contain 'name' and 'artist' columns.")
+            return
 
-        # k-recommendations
-        k = st.selectbox("How many recommendations do you want?", [5, 10, 15, 20], index=1)
+        # Drop NaNs and create list of (name, artist) pairs
+        cleaned_data = cleaned_data.dropna(subset=["name", "artist"])
+        cleaned_data["name"] = cleaned_data["name"].astype(str)
+        cleaned_data["artist"] = cleaned_data["artist"].astype(str)
 
-        # Cleaned data
-        cleaned_data = pd.read_csv(CLEANED_SONGS_DATA)
+        # User types a search string
+        typed_input = st.text_input("🔎 Type a song name and press enter/return:")
 
-        # Button for generating recommendations
-        if st.button("Get Recommendations"):
-            logger.info(f'User requested recommendations for "{song_name}" with k={k}.')
-            self.handle_recommendations(song_name=song_name, k=k, cleaned_data=cleaned_data)
+        # Filter entries where input matches the song name
+        filtered_df = (
+            cleaned_data[cleaned_data["name"].str.contains(typed_input.lower(), na=False)]
+            if typed_input
+            else pd.DataFrame()
+        )
+
+        # Build display labels and mapping to lowercase song names
+        display_labels = []
+        label_to_name_map = {}
+
+        for _, row in filtered_df.iterrows():
+            title_case_label = f'{row["name"].title()} — {row["artist"].title()}'
+            display_labels.append(title_case_label)
+            label_to_name_map[title_case_label] = row["name"]  # keep original lowercase song name
+
+        selected_label = None
+        if display_labels:
+            selected_label = st.selectbox("🎶 Matching songs, pick yours:", sorted(display_labels))
+        elif typed_input:
+            st.warning("No matching songs found. Please try a different input.")
+
+        # Number of recommendations
+        k = st.selectbox("🔢 How many recommendations do you want?", [5, 10, 15, 20], index=1)
+
+        # Trigger recommendations
+        if selected_label and st.button("🚀 Get Recommendations"):
+            selected_song_name = label_to_name_map[selected_label]
+            logger.info(f'User selected "{selected_song_name}" with k={k}.')
+            self.handle_recommendations(
+                song_name=selected_song_name, k=k, cleaned_data=cleaned_data
+            )
 
         logger.info("App ran successfully.")
 
