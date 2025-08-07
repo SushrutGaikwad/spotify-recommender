@@ -19,4 +19,5 @@ typer
 streamlit
 dask[complete]
 missingno
+category_encoders
 -e .
