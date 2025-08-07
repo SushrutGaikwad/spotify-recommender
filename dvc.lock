@@ -9,7 +9,7 @@ stages:
       size: 14985870
     - path: spotify_recommender/data_cleaning.py
       hash: md5
-      md5: 30b97910d0c08079591af5e1e117d7be
+      md5: fe81adfd98c8688e9034183f74acc688
       size: 7793
     outs:
     - path: data/interim/Music_Info_cleaned.csv
@@ -17,43 +17,43 @@ stages:
       md5: b5e99f8fcf0e54fa347c97490c779d67
       size: 13709636
   data_preparation_cbf:
-    cmd: python spotify_recommender/content_based_filtering_data_prep.py
+    cmd: python spotify_recommender/content_based_filtering/data_preparation.py
     deps:
     - path: data/interim/Music_Info_cleaned.csv
       hash: md5
       md5: b5e99f8fcf0e54fa347c97490c779d67
       size: 13709636
-    - path: spotify_recommender/content_based_filtering_data_prep.py
+    - path: spotify_recommender/content_based_filtering/data_preparation.py
       hash: md5
-      md5: fa32179f0677f5a119b8aa657337e23b
-      size: 4329
+      md5: 6985e2990b980de09c6ff7b7e58c03b3
+      size: 4203
     outs:
     - path: data/interim/Music_Info_cleaned_CBF.csv
       hash: md5
       md5: 975f828b7bd4cfc6daf60c0ef3125b1f
       size: 6510636
   data_transformation_cbf:
-    cmd: python spotify_recommender/content_based_filtering_data_transformation.py
+    cmd: python spotify_recommender/content_based_filtering/data_transformation.py
     deps:
     - path: data/interim/Music_Info_cleaned_CBF.csv
       hash: md5
       md5: 975f828b7bd4cfc6daf60c0ef3125b1f
       size: 6510636
-    - path: spotify_recommender/content_based_filtering_data_transformation.py
+    - path: spotify_recommender/content_based_filtering/data_transformation.py
       hash: md5
-      md5: f2f81f271022a28b891feed2ebc542b7
-      size: 9490
+      md5: af88788d1aeb6a82d4432f041c1c5b8d
+      size: 9352
     outs:
     - path: data/processed/Music_Info_cleaned_transformed_CBF.npz
       hash: md5
-      md5: 3b28c931c4f1a5b82beeb784c265cc3d
-      size: 4517729
-    - path: models/trained_transformer.joblib
+      md5: 8d021100d00159c65ddbfe535524882f
+      size: 4517758
+    - path: models/trained_transformer_CBF.joblib
       hash: md5
-      md5: 93e7221f3f27052449fec5c8b28edd94
-      size: 200751
+      md5: 8ce89200467754819839a9037ad1bde1
+      size: 142381
   content_based_filtering:
-    cmd: python spotify_recommender/content_based_filtering_recommendation.py
+    cmd: python spotify_recommender/content_based_filtering/recommendation.py
     deps:
     - path: data/interim/Music_Info_cleaned.csv
       hash: md5
@@ -61,9 +61,9 @@ stages:
       size: 13709636
     - path: data/processed/Music_Info_cleaned_transformed_CBF.npz
       hash: md5
-      md5: 3b28c931c4f1a5b82beeb784c265cc3d
-      size: 4517729
-    - path: spotify_recommender/content_based_filtering_recommendation.py
+      md5: 8d021100d00159c65ddbfe535524882f
+      size: 4517758
+    - path: spotify_recommender/content_based_filtering/recommendation.py
       hash: md5
-      md5: 119828dc9ee4d93e0320a1d3f6ff2e49
-      size: 6419
+      md5: ef88797e837e12a235eda049124315f3
+      size: 6302

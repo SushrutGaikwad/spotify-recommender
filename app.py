@@ -6,10 +6,10 @@ from loguru import logger
 from tqdm.auto import tqdm
 from scipy.sparse import load_npz, spmatrix
 
-from spotify_recommender.content_based_filtering_recommendation import (
-    ContentBasedFilteringRecommender,
+from spotify_recommender.content_based_filtering.recommendation import (
+    Recommender,
 )
-from spotify_recommender.config import CLEANED_MUSIC_DATA, TRANSFORMED_MUSIC_DATA_CBF
+from spotify_recommender.config import CLEANED_SONGS_DATA, TRANSFORMED_SONGS_DATA_CBF
 
 
 class SpotifyRecommenderApp:
@@ -17,7 +17,7 @@ class SpotifyRecommenderApp:
         logger.info("Instantiating a `SpotifyRecommenderApp` object...")
         self.cleaned_data_path = cleaned_data_path
         self.transformed_data_path = transformed_data_path
-        self.recommender = ContentBasedFilteringRecommender(
+        self.recommender = Recommender(
             cleaned_data_path=self.cleaned_data_path,
             transformed_data_path=self.transformed_data_path,
         )
@@ -176,7 +176,7 @@ class SpotifyRecommenderApp:
         k = st.selectbox("How many recommendations do you want?", [5, 10, 15, 20], index=1)
 
         # Cleaned data
-        cleaned_data = pd.read_csv(CLEANED_MUSIC_DATA)
+        cleaned_data = pd.read_csv(CLEANED_SONGS_DATA)
 
         # Button for generating recommendations
         if st.button("Get Recommendations"):
@@ -188,6 +188,6 @@ class SpotifyRecommenderApp:
 
 if __name__ == "__main__":
     app = SpotifyRecommenderApp(
-        cleaned_data_path=CLEANED_MUSIC_DATA, transformed_data_path=TRANSFORMED_MUSIC_DATA_CBF
+        cleaned_data_path=CLEANED_SONGS_DATA, transformed_data_path=TRANSFORMED_SONGS_DATA_CBF
     )
     app.run()

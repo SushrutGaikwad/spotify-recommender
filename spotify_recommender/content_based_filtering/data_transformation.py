@@ -13,9 +13,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, OneHotEncoder
 
 from spotify_recommender.config import (
-    CLEANED_MUSIC_DATA_CBF,
-    TRANSFORMED_MUSIC_DATA_CBF,
-    TRAINED_TRANSFORMER,
+    CLEANED_SONGS_DATA_CBF,
+    TRANSFORMED_SONGS_DATA_CBF,
+    TRAINED_TRANSFORMER_CBF,
     CONTENT_BASED_FILTERING_DATA_TRANS_TFIDF_MAX_FEATURES,
     CONTENT_BASED_FILTERING_DATA_TRANS_FREQUENCY_ENCODE_COLS,
     CONTENT_BASED_FILTERING_DATA_TRANS_OHE_COLS,
@@ -25,16 +25,16 @@ from spotify_recommender.config import (
 )
 
 
-class ContentBasedFilteringDataTransformer:
+class DataTransformer:
     def __init__(self, prepared_data_path: Path) -> None:
-        """Initiates a `ContentBasedFilteringDataTransformer` object.
+        """Initiates a `DataTransformer` object.
 
         Args:
             prepared_data_path (Path): Path of the prepared data.
         """
-        logger.info("Instantiating a `ContentBasedFilteringDataTransformer` object...")
+        logger.info("Instantiating a `DataTransformer` object...")
         self.prepared_data_path = prepared_data_path
-        logger.info("`ContentBasedFilteringDataTransformer` object successfully instantiated.")
+        logger.info("`DataTransformer` object successfully instantiated.")
 
     def load_data(self) -> pd.DataFrame:
         """Loads the prepared data.
@@ -206,10 +206,8 @@ if __name__ == "__main__":
     try:
         logger.info("Starting data transformation process for content-based filtering...")
 
-        # Initialize ContentBasedFilteringDataTransformer object
-        data_transformer = ContentBasedFilteringDataTransformer(
-            prepared_data_path=CLEANED_MUSIC_DATA_CBF
-        )
+        # Initialize DataTransformer object
+        data_transformer = DataTransformer(prepared_data_path=CLEANED_SONGS_DATA_CBF)
 
         # Perform data transformation for content-based filtering
         trained_transformer, transformed_data = (
@@ -217,13 +215,13 @@ if __name__ == "__main__":
         )
 
         # Save the trained transformer
-        logger.info(f"Saving trained transformer to '{TRAINED_TRANSFORMER}'...")
-        joblib.dump(trained_transformer, TRAINED_TRANSFORMER)
+        logger.info(f"Saving trained transformer to '{TRAINED_TRANSFORMER_CBF}'...")
+        joblib.dump(trained_transformer, TRAINED_TRANSFORMER_CBF)
         logger.info("Trained transformer saved successfully.")
 
         # Save the transformed data
-        logger.info(f"Saving transformed data to '{TRANSFORMED_MUSIC_DATA_CBF}'...")
-        save_npz(TRANSFORMED_MUSIC_DATA_CBF, transformed_data)
+        logger.info(f"Saving transformed data to '{TRANSFORMED_SONGS_DATA_CBF}'...")
+        save_npz(TRANSFORMED_SONGS_DATA_CBF, transformed_data)
         logger.info("Data saved successfully.")
 
         logger.info(

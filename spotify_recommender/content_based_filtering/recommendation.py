@@ -8,26 +8,26 @@ from scipy.sparse import load_npz, spmatrix
 from sklearn.metrics.pairwise import cosine_similarity
 
 from spotify_recommender.config import (
-    CLEANED_MUSIC_DATA,
-    TRANSFORMED_MUSIC_DATA_CBF,
+    CLEANED_SONGS_DATA,
+    TRANSFORMED_SONGS_DATA_CBF,
     CONTENT_BASED_FILTERING_RECO_SONG_NAME,
     CONTENT_BASED_FILTERING_RECO_K,
 )
 
 
-class ContentBasedFilteringRecommender:
+class Recommender:
     def __init__(self, cleaned_data_path: Path, transformed_data_path: Path) -> None:
-        """Initiates a `ContentBasedFilteringRecommender` object.
+        """Initiates a `Recommender` object.
 
         Args:
             cleaned_data_path (Path): Path of the cleaned data.
             transformed_data_path (Path): Path of the transformed data.
         """
-        logger.info("Instantiating a `ContentBasedFilteringRecommender` object...")
+        logger.info("Instantiating a `Recommender` object...")
         self.cleaned_data_path = cleaned_data_path
         self.transformed_data_path = transformed_data_path
         self.k = None
-        logger.info("`ContentBasedFilteringRecommender` object successfully instantiated.")
+        logger.info("`Recommender` object successfully instantiated.")
 
     def load_cleaned_data(self) -> pd.DataFrame:
         """Loads the cleaned data.
@@ -141,13 +141,13 @@ class ContentBasedFilteringRecommender:
 if __name__ == "__main__":
     try:
         logger.info("Starting content-based filtering recommendation process...")
-        cbf_recommender = ContentBasedFilteringRecommender(
-            cleaned_data_path=CLEANED_MUSIC_DATA, transformed_data_path=TRANSFORMED_MUSIC_DATA_CBF
+        recommender = Recommender(
+            cleaned_data_path=CLEANED_SONGS_DATA, transformed_data_path=TRANSFORMED_SONGS_DATA_CBF
         )
-        recommendations = cbf_recommender.recommend(
+        recommendations = recommender.recommend(
             song_name=CONTENT_BASED_FILTERING_RECO_SONG_NAME, k=CONTENT_BASED_FILTERING_RECO_K
         )
-        logger.info(f"Top-{cbf_recommender.k} song recommendations:")
+        logger.info(f"Top-{recommender.k} song recommendations:")
         logger.info(f"\n{recommendations}")
         logger.info("Content-based filtering recommendation process completed successfully!")
     except Exception as e:

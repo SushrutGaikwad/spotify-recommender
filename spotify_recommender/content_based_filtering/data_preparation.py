@@ -5,22 +5,22 @@ from tqdm.auto import tqdm
 from pathlib import Path
 
 from spotify_recommender.config import (
-    CLEANED_MUSIC_DATA,
-    CLEANED_MUSIC_DATA_CBF,
+    CLEANED_SONGS_DATA,
+    CLEANED_SONGS_DATA_CBF,
     CONTENT_BASED_FILTERING_DATA_PREP_COLS_TO_DROP,
 )
 
 
-class ContentBasedFilteringDataPrepper:
+class DataPrepper:
     def __init__(self, cleaned_data_path: Path) -> None:
-        """Initiates a `ContentBasedFilteringDataPrepper` object.
+        """Initiates a `DataPrepper` object.
 
         Args:
             cleaned_data_path (Path): Path of the cleaned data.
         """
-        logger.info("Instantiating a `ContentBasedFilteringDataPrepper` object...")
+        logger.info("Instantiating a `DataPrepper` object...")
         self.cleaned_data_path = cleaned_data_path
-        logger.info("`ContentBasedFilteringDataPrepper` object successfully instantiated.")
+        logger.info("`DataPrepper` object successfully instantiated.")
 
     def load_data(self) -> pd.DataFrame:
         """Loads the cleaned data.
@@ -100,8 +100,8 @@ if __name__ == "__main__":
     try:
         logger.info("Starting data preparation process for content-based filtering...")
 
-        # Initialize ContentBasedFilteringDataPrepper object
-        data_prepper = ContentBasedFilteringDataPrepper(cleaned_data_path=CLEANED_MUSIC_DATA)
+        # Initialize DataPrepper object
+        data_prepper = DataPrepper(cleaned_data_path=CLEANED_SONGS_DATA)
 
         # Prepare the data
         cbf_data = data_prepper.prepare_data(
@@ -109,8 +109,8 @@ if __name__ == "__main__":
         )
 
         # Save the prepared data
-        logger.info(f"Saving the prepared data to '{CLEANED_MUSIC_DATA_CBF}'...")
-        cbf_data.to_csv(CLEANED_MUSIC_DATA_CBF, index=False)
+        logger.info(f"Saving the prepared data to '{CLEANED_SONGS_DATA_CBF}'...")
+        cbf_data.to_csv(CLEANED_SONGS_DATA_CBF, index=False)
         logger.info("Data saved successfully.")
 
         logger.info("Data preparation process for content-based filtering completed successfully!")

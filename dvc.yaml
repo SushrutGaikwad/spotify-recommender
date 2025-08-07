@@ -6,27 +6,27 @@ stages:
       - data/raw/Music_Info.csv
     outs:
       - data/interim/Music_Info_cleaned.csv
-  
+
   data_preparation_cbf:
-    cmd: python spotify_recommender/content_based_filtering_data_prep.py
+    cmd: python spotify_recommender/content_based_filtering/data_preparation.py
     deps:
-      - spotify_recommender/content_based_filtering_data_prep.py
+      - spotify_recommender/content_based_filtering/data_preparation.py
       - data/interim/Music_Info_cleaned.csv
     outs:
       - data/interim/Music_Info_cleaned_CBF.csv
-  
+
   data_transformation_cbf:
-    cmd: python spotify_recommender/content_based_filtering_data_transformation.py
+    cmd: python spotify_recommender/content_based_filtering/data_transformation.py
     deps:
-      - spotify_recommender/content_based_filtering_data_transformation.py
+      - spotify_recommender/content_based_filtering/data_transformation.py
       - data/interim/Music_Info_cleaned_CBF.csv
     outs:
       - data/processed/Music_Info_cleaned_transformed_CBF.npz
-      - models/trained_transformer.joblib
-  
+      - models/trained_transformer_CBF.joblib
+
   content_based_filtering:
-    cmd: python spotify_recommender/content_based_filtering_recommendation.py
+    cmd: python spotify_recommender/content_based_filtering/recommendation.py
     deps:
-      - spotify_recommender/content_based_filtering_recommendation.py
+      - spotify_recommender/content_based_filtering/recommendation.py
       - data/interim/Music_Info_cleaned.csv
       - data/processed/Music_Info_cleaned_transformed_CBF.npz

@@ -5,8 +5,8 @@ from tqdm.auto import tqdm
 from pathlib import Path
 
 from spotify_recommender.config import (
-    RAW_MUSIC_DATA,
-    CLEANED_MUSIC_DATA,
+    RAW_SONGS_DATA,
+    CLEANED_SONGS_DATA,
     DATA_CLEANING_DROP_DUPLICATES_SUBSET,
     DATA_CLEANING_COLS_TO_DROP,
     DATA_CLEANING_FILL_NA_VALS_DICT,
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         logger.info("Starting data cleaning process...")
 
         # Initialize DataCleaner object
-        data_cleaner = DataCleaner(raw_data_path=RAW_MUSIC_DATA)
+        data_cleaner = DataCleaner(raw_data_path=RAW_SONGS_DATA)
 
         # Clean the data
         cleaned_data = data_cleaner.clean_data(
@@ -193,8 +193,8 @@ if __name__ == "__main__":
         )
 
         # Save cleaned data
-        logger.info(f"Saving the cleaned data to '{CLEANED_MUSIC_DATA}'...")
-        cleaned_data.to_csv(CLEANED_MUSIC_DATA, index=False)
+        logger.info(f"Saving the cleaned data to '{CLEANED_SONGS_DATA}'...")
+        cleaned_data.to_csv(CLEANED_SONGS_DATA, index=False)
         logger.info("Data saved successfully.")
 
         logger.info("Data cleaning process completed successfully!")
