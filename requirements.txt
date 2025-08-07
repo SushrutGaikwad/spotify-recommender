@@ -17,7 +17,7 @@ category_encoders
 tqdm
 typer
 streamlit
-dask[complete]
+dask[dataframe]
 missingno
 category_encoders
 -e .
