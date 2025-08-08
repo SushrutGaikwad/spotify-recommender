@@ -67,3 +67,62 @@ stages:
       hash: md5
       md5: ef88797e837e12a235eda049124315f3
       size: 6302
+  data_filtering_collab:
+    cmd: python spotify_recommender/collaborative_filtering/data_filtering.py
+    deps:
+    - path: data/interim/Music_Info_cleaned.csv
+      hash: md5
+      md5: b5e99f8fcf0e54fa347c97490c779d67
+      size: 13709636
+    - path: data/raw/User_Listening_History.csv
+      hash: md5
+      md5: 3a12e713844195171c7040c051d6d4ae
+      size: 602515573
+    - path: spotify_recommender/collaborative_filtering/data_filtering.py
+      hash: md5
+      md5: 43c23dd41f9897311f5babb1714b45d6
+      size: 4266
+    outs:
+    - path: data/interim/collab_filtered_songs.csv
+      hash: md5
+      md5: c0fc661e2f86835ab81094d000285e93
+      size: 8259927
+  interaction_matrix_collab:
+    cmd: python spotify_recommender/collaborative_filtering/interaction_matrix.py
+    deps:
+    - path: data/raw/User_Listening_History.csv
+      hash: md5
+      md5: 3a12e713844195171c7040c051d6d4ae
+      size: 602515573
+    - path: spotify_recommender/collaborative_filtering/interaction_matrix.py
+      hash: md5
+      md5: 3f7f09d905ac3929d9c38068d6cdd21f
+      size: 3420
+    outs:
+    - path: data/processed/collab_interaction_matrix.npz
+      hash: md5
+      md5: 53f8fa1e7cec19856a6b2bc60ce8881f
+      size: 32311353
+    - path: data/processed/collab_track_ids.npy
+      hash: md5
+      md5: 4a52e4cb6bae6b0126c1344dac7c7686
+      size: 640058
+  collaborative_filtering:
+    cmd: python spotify_recommender/collaborative_filtering/recommendation.py
+    deps:
+    - path: data/interim/collab_filtered_songs.csv
+      hash: md5
+      md5: c0fc661e2f86835ab81094d000285e93
+      size: 8259927
+    - path: data/processed/collab_interaction_matrix.npz
+      hash: md5
+      md5: 53f8fa1e7cec19856a6b2bc60ce8881f
+      size: 32311353
+    - path: data/processed/collab_track_ids.npy
+      hash: md5
+      md5: 4a52e4cb6bae6b0126c1344dac7c7686
+      size: 640058
+    - path: spotify_recommender/collaborative_filtering/recommendation.py
+      hash: md5
+      md5: 3d7aae3129812e6d4ad130dc9c31da53
+      size: 5183

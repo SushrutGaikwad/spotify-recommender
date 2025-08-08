@@ -61,3 +61,17 @@ CONTENT_BASED_FILTERING_DATA_TRANS_MIN_MAX_SCALER_COLS: list = [
 # For content-based filtering recommendation
 CONTENT_BASED_FILTERING_RECO_K: int = 10
 CONTENT_BASED_FILTERING_RECO_SONG_NAME: str = "Mockingbird"
+
+# For collaborative filtering
+
+# Paths
+USER_HISTORY_DATA = RAW_DATA_DIR / "User_Listening_History.csv"
+COLLAB_FILTERED_SONGS_DATA = INTERIM_DATA_DIR / "collab_filtered_songs.csv"
+COLLAB_TRACK_IDS_NPY = PROCESSED_DATA_DIR / "collab_track_ids.npy"
+COLLAB_INTERACTION_MATRIX_NPZ = PROCESSED_DATA_DIR / "collab_interaction_matrix.npz"
+
+# Parameters
+COLLAB_K: int = 10
+COLLAB_MIN_PLAYS: float = 0.0  # if you want to drop super-low counts later
+COLLAB_FILTERING_SONG_NAME: str = "Numb"
+COLLAB_FILTERING_ARTIST_NAME: str = "Linkin Park"

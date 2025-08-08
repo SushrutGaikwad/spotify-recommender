@@ -30,3 +30,29 @@ stages:
       - spotify_recommender/content_based_filtering/recommendation.py
       - data/interim/Music_Info_cleaned.csv
       - data/processed/Music_Info_cleaned_transformed_CBF.npz
+
+  data_filtering_collab:
+    cmd: python spotify_recommender/collaborative_filtering/data_filtering.py
+    deps:
+      - spotify_recommender/collaborative_filtering/data_filtering.py
+      - data/raw/User_Listening_History.csv
+      - data/interim/Music_Info_cleaned.csv
+    outs:
+      - data/interim/collab_filtered_songs.csv
+
+  interaction_matrix_collab:
+    cmd: python spotify_recommender/collaborative_filtering/interaction_matrix.py
+    deps:
+      - spotify_recommender/collaborative_filtering/interaction_matrix.py
+      - data/raw/User_Listening_History.csv
+    outs:
+      - data/processed/collab_track_ids.npy
+      - data/processed/collab_interaction_matrix.npz
+
+  collaborative_filtering:
+    cmd: python spotify_recommender/collaborative_filtering/recommendation.py
+    deps:
+      - spotify_recommender/collaborative_filtering/recommendation.py
+      - data/interim/collab_filtered_songs.csv
+      - data/processed/collab_track_ids.npy
+      - data/processed/collab_interaction_matrix.npz
