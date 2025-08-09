@@ -6,20 +6,50 @@ from loguru import logger
 from tqdm.auto import tqdm
 from scipy.sparse import load_npz, spmatrix
 
+# CBF
 from spotify_recommender.content_based_filtering.recommendation import (
-    Recommender,
+    Recommender as CBF_Recommender,
 )
-from spotify_recommender.config import CLEANED_SONGS_DATA, TRANSFORMED_SONGS_DATA_CBF
+
+# CF
+from spotify_recommender.collaborative_filtering.recommendation import (
+    Recommender as CF_Recommender,
+)
+
+from spotify_recommender.config import (
+    # Content-based filtering
+    CLEANED_SONGS_DATA,
+    TRANSFORMED_SONGS_DATA_CBF,
+    # Collaborative filtering
+    COLLAB_FILTERED_SONGS_DATA,
+    COLLAB_TRACK_IDS_NPY,
+    COLLAB_INTERACTION_MATRIX_NPZ,
+)
 
 
 class SpotifyRecommenderApp:
     def __init__(self, cleaned_data_path: Path, transformed_data_path: Path) -> None:
+        """Initiates a `SpotifyRecommenderApp` object.
+
+        Args:
+            cleaned_data_path (Path): Path of the cleaned data for content-based filtering.
+            transformed_data_path (Path): Path of the transformed data for content-based filtering.
+        """
         logger.info("Instantiating a `SpotifyRecommenderApp` object...")
         self.cleaned_data_path = cleaned_data_path
         self.transformed_data_path = transformed_data_path
-        self.recommender = Recommender(
+
+        # Content-based filtering recommender
+        self.recommender_cbf = CBF_Recommender(
             cleaned_data_path=self.cleaned_data_path,
             transformed_data_path=self.transformed_data_path,
+        )
+
+        # Collaborative filtering recommender
+        self.recommender_cf = CF_Recommender(
+            filtered_songs_path=COLLAB_FILTERED_SONGS_DATA,
+            track_ids_path=COLLAB_TRACK_IDS_NPY,
+            interaction_matrix_path=COLLAB_INTERACTION_MATRIX_NPZ,
         )
         logger.info("`SpotifyRecommenderApp` object successfully instantiated.")
 
@@ -38,11 +68,11 @@ class SpotifyRecommenderApp:
             logger.error(f"FileNotFoundError: {e}.")
             st.error(f"Error: Missing required files! {e}.")
         except Exception as e:
-            logger.error(f"Unexpected error in `load_data`: {e}.")
+            logger.error(f"Unexpected error in `load_cleaned_data`: {e}.")
             st.error("An error occurred while loading the data.")
 
     def load_transformed_data(self) -> spmatrix:
-        """Loads the transformed data.
+        """Loads the transformed data (content-based).
 
         Returns:
             spmatrix: Transformed data.
@@ -56,13 +86,31 @@ class SpotifyRecommenderApp:
             logger.error(f"FileNotFoundError: {e}.")
             st.error(f"Error: Missing required files! {e}.")
         except Exception as e:
-            logger.error(f"Unexpected error in `load_data`: {e}.")
+            logger.error(f"Unexpected error in `load_transformed_data`: {e}.")
             st.error("An error occurred while loading the data.")
 
-    def get_recommendations(
+    def load_cf_catalog(self) -> pd.DataFrame:
+        """Loads the filtered catalog used by collaborative filtering.
+
+        Returns:
+            pd.DataFrame: Filtered songs catalog for collaborative filtering.
+        """
+        try:
+            logger.info("Running the method `load_cf_catalog`...")
+            logger.info(f"Loading CF filtered catalog from '{COLLAB_FILTERED_SONGS_DATA}'...")
+            cf_catalog = pd.read_csv(COLLAB_FILTERED_SONGS_DATA)
+            return cf_catalog
+        except FileNotFoundError as e:
+            logger.error(f"FileNotFoundError: {e}.")
+            st.error(f"Error: Missing collaborative filtering files! {e}.")
+        except Exception as e:
+            logger.error(f"Unexpected error in `load_cf_catalog`: {e}.")
+            st.error("An error occurred while loading collaborative filtering data.")
+
+    def get_cbf_recommendations(
         self, song_name: str, k: int, cleaned_data: pd.DataFrame
     ) -> pd.DataFrame:
-        """Generates recommendations based on a song name.
+        """Generates content-based filtering recommendations.
 
         Args:
             song_name (str): Name of the song to generate recommendations from.
@@ -73,55 +121,121 @@ class SpotifyRecommenderApp:
             pd.DataFrame: Recommendations.
         """
         try:
-            logger.info("Running the method `get_recommendations`...")
-            logger.info(f'Fetching k={k} recommendations for the song "{song_name}"...')
+            logger.info("Running the method `get_cbf_recommendations`...")
+            logger.info(f'Fetching k={k} CBF recommendations for "{song_name}"...')
             song_name_lower = song_name.lower()
 
             if (cleaned_data["name"] == song_name_lower).any():
-                with tqdm(total=1, desc="Generating Recommendations", unit="step") as pbar:
-                    recommendations = self.recommender.recommend(song_name=song_name, k=k)
+                with tqdm(total=1, desc="Generating CBF Recommendations", unit="step") as pbar:
+                    recommendations = self.recommender_cbf.recommend(song_name=song_name, k=k)
                     pbar.update(1)
-
-                logger.info(f"Successfully generated {k} recommendations.")
+                logger.info(f"Successfully generated {k} CBF recommendations.")
                 return recommendations
             else:
-                logger.warning(f'The song "{song_name}" is not found in the dataset.')
+                logger.warning(f'The song "{song_name}" is not found in the cleaned dataset.')
                 return pd.DataFrame()
         except Exception as e:
-            logger.error(f"Unexpected error in `get_recommendations`: {e}.")
+            logger.error(f"Unexpected error in `get_cbf_recommendations`: {e}.")
             return pd.DataFrame()
 
-    def display_recommendations(self, recommendations: pd.DataFrame) -> None:
-        """Displays recommendations.
+    def get_cf_recommendations(self, song_name: str, artist_name: str, k: int) -> pd.DataFrame:
+        """Generates collaborative filtering recommendations.
 
         Args:
-            recommendations (pd.DataFrame): Recommendations.
+            song_name (str): Name of the seed song.
+            artist_name (str): Artist of the seed song.
+            k (int): The number of recommendations to generate.
+
+        Returns:
+            pd.DataFrame: Recommendations.
+        """
+        try:
+            logger.info("Running the method `get_cf_recommendations`...")
+            logger.info(
+                f'Fetching k={k} CF recommendations for "{song_name}" by "{artist_name}"...'
+            )
+
+            # CF artifacts load internally via recommender_cf.load_artifacts()
+            with tqdm(total=1, desc="Generating CF Recommendations", unit="step") as pbar:
+                recommendations = self.recommender_cf.recommend(
+                    song_name=song_name, artist_name=artist_name, k=k
+                )
+                pbar.update(1)
+            logger.info(f"Successfully generated {k} CF recommendations.")
+            return recommendations
+        except ValueError as e:
+            logger.warning(str(e))
+            return pd.DataFrame()
+        except Exception as e:
+            logger.error(f"Unexpected error in `get_cf_recommendations`: {e}.")
+            return pd.DataFrame()
+
+    def _build_display_labels(self, df: pd.DataFrame) -> tuple[list[str], dict]:
+        """Builds display labels and a mapping for selection.
+
+        Args:
+            df (pd.DataFrame): DataFrame with 'name' and 'artist' columns.
+
+        Returns:
+            tuple[list[str], dict]: (labels, label->(name, artist)) mapping.
+        """
+        try:
+            logger.info("Running the helper `_build_display_labels`...")
+            display_labels, label_map = [], {}
+            for _, row in df.iterrows():
+                label = f'{row["name"].title()} — {row["artist"].title()}'
+                display_labels.append(label)
+                # Save lowercase (as data is lowercased by cleaner)
+                label_map[label] = (row["name"], row["artist"])
+            return display_labels, label_map
+        except Exception as e:
+            logger.error(f"Unexpected error in `_build_display_labels`: {e}.")
+            return [], {}
+
+    def display_recommendations(
+        self,
+        seed_name: str,
+        seed_artist: str,
+        seed_preview_url: str | None,
+        recommendations: pd.DataFrame,
+    ) -> None:
+        """Displays the seed track first and then the recommendations.
+
+        Args:
+            seed_name (str): Seed song name (title-cased for display is handled here).
+            seed_artist (str): Seed artist name.
+            seed_preview_url (str | None): Preview URL for the seed (can be None).
+            recommendations (pd.DataFrame): Recommendations (seed excluded).
         """
         try:
             logger.info("Running the method `display_recommendations`...")
 
+            # Seed / Currently Playing
+            st.markdown("### Currently Playing")
+            st.markdown(f'##### "{seed_name.title()}" by "{seed_artist.title()}":')
+            if seed_preview_url:
+                st.audio(seed_preview_url)
+            st.write("---")
+
+            if recommendations.empty:
+                st.info("No recommendations to display.")
+                return
+
+            # Recommendations (start numbering at 1)
             with tqdm(
                 total=len(recommendations), desc="Displaying Recommendations", unit="song"
             ) as pbar:
-                for idx, recommendation in recommendations.iterrows():
-                    song_name = recommendation["name"].title()
-                    artist_name = recommendation["artist"].title()
-
-                    if idx == 0:
-                        st.markdown("### Currently Playing:")
-                        st.markdown(f'##### "{song_name}" by "{artist_name}".')
-                        st.audio(recommendation["spotify_preview_url"])
-                        st.write("---")
-                    elif idx == 1:
-                        st.markdown("#### Next Up 🎵")
-                        st.markdown(f'##### {idx}. "{song_name}" by "{artist_name}".')
-                        st.audio(recommendation["spotify_preview_url"])
-                        st.write("---")
-                    else:
-                        st.markdown(f'##### {idx}. "{song_name}" by "{artist_name}".')
-                        st.audio(recommendation["spotify_preview_url"])
-                        st.write("---")
-
+                for rank, recommendation in enumerate(
+                    recommendations.itertuples(index=False), start=1
+                ):
+                    rec_song = getattr(recommendation, "name").title()
+                    rec_artist = getattr(recommendation, "artist").title()
+                    st.markdown("### You may also like" if rank == 1 else "")
+                    st.markdown(f'##### {rank}. "{rec_song}" by "{rec_artist}":')
+                    preview = getattr(recommendation, "spotify_preview_url", None)
+                    if preview:
+                        st.audio(preview)
+                    st.write("---")
                     pbar.update(1)
 
             logger.info("Recommendations displayed successfully.")
@@ -129,97 +243,188 @@ class SpotifyRecommenderApp:
             logger.error(f"Unexpected error in `display_recommendations`: {e}.")
             st.error("An error occurred while displaying recommendations.")
 
-    def handle_recommendations(self, song_name: str, k: int, cleaned_data: pd.DataFrame) -> None:
-        """Handles recommendations and displays them if they are not empty. Raises an error if the song is not found in the data.
+    def handle_cbf(self, cleaned_data: pd.DataFrame) -> None:
+        """Handles the CBF UI flow and displays recommendations.
 
         Args:
-            song_name (str): Name of the song.
-            k (int): Number of recommendations to display.
-            cleaned_data (pd.DataFrame): Cleaned data.
+            cleaned_data (pd.DataFrame): Cleaned data used for CBF searching.
         """
         try:
-            logger.info("Running the method `handle_recommendations`...")
-            if not song_name.strip():
-                st.warning("Please enter a song name!")
-                return
+            logger.info("Running the method `handle_cbf`...")
 
-            recommendations = self.get_recommendations(
-                song_name=song_name, k=k, cleaned_data=cleaned_data
+            typed_input = st.text_input("Type a song name and press enter/return:")
+            filtered_df = (
+                cleaned_data[
+                    cleaned_data["name"].str.contains(typed_input.lower(), na=False, regex=False)
+                ]
+                if typed_input
+                else pd.DataFrame()
             )
 
-            if recommendations.empty:
-                st.error(
-                    f"""Sorry, we couldn't find the song "{song_name}" in our database. Please try another song."""
+            if typed_input and filtered_df.empty:
+                st.warning("No matching songs found. Please try a different input.")
+                return
+
+            labels, label_map = self._build_display_labels(filtered_df)
+            selected_label = (
+                st.selectbox("Matching songs found. Pick yours:", sorted(labels))
+                if labels
+                else None
+            )
+
+            k = st.selectbox("How many recommendations do you want?", [5, 10, 15, 20], index=1)
+
+            if selected_label and st.button("Get Recommendations!"):
+                selected_song_name, selected_artist_name = label_map[selected_label]
+                logger.info(f'CBF selected "{selected_song_name}" with k={k}.')
+
+                recs = self.get_cbf_recommendations(
+                    song_name=selected_song_name, k=k, cleaned_data=cleaned_data
                 )
-            else:
-                st.markdown("## We suggest you would love the following:")
-                self.display_recommendations(recommendations)
-            logger.info("Recommendations handled successfully.")
+
+                seed_row = cleaned_data.loc[
+                    (cleaned_data["name"] == selected_song_name)
+                    & (cleaned_data["artist"] == selected_artist_name)
+                ]
+                seed_preview = (
+                    seed_row["spotify_preview_url"].iloc[0] if not seed_row.empty else None
+                )
+
+                if recs.empty:
+                    st.error(
+                        f"""Sorry, we couldn't find find recommendations for "{selected_song_name}" in our database."""
+                    )
+                else:
+                    st.markdown("## Recommendations")
+                    self.display_recommendations(
+                        seed_name=selected_song_name,
+                        seed_artist=selected_artist_name,
+                        seed_preview_url=seed_preview,
+                        recommendations=recs,
+                    )
+
         except Exception as e:
-            logger.error(f"Unexpected error in `handle_recommendation`: {e}.")
-            st.error("Something went wrong while generating recommendations. Please try again.")
+            logger.error(f"Unexpected error in `handle_cbf`: {e}.")
+            st.error(
+                "Something went wrong while generating CBF recommendations. Please try again."
+            )
+
+    def handle_cf(self, cf_catalog: pd.DataFrame) -> None:
+        """Handles the CF UI flow and displays recommendations.
+
+        Args:
+            cf_catalog (pd.DataFrame): Filtered catalog used for CF searching.
+        """
+        try:
+            logger.info("Running the method `handle_cf`...")
+
+            typed_input = st.text_input("Type a song name and press enter/return:")
+            filtered_df = (
+                cf_catalog[
+                    cf_catalog["name"].str.contains(typed_input.lower(), na=False, regex=False)
+                ]
+                if typed_input
+                else pd.DataFrame()
+            )
+
+            if typed_input and filtered_df.empty:
+                st.warning("No matching songs found. Please try a different input.")
+                return
+
+            labels, label_map = self._build_display_labels(filtered_df)
+            selected_label = (
+                st.selectbox("Matching songs found. Pick yours:", sorted(labels))
+                if labels
+                else None
+            )
+
+            k = st.selectbox("How many recommendations do you want?", [5, 10, 15, 20], index=1)
+
+            if selected_label and st.button("Get Recommendations!"):
+                selected_song_name, selected_artist_name = label_map[selected_label]
+                logger.info(
+                    f'CF selected "{selected_song_name}" by "{selected_artist_name}" with k={k}.'
+                )
+
+                recs = self.get_cf_recommendations(
+                    song_name=selected_song_name, artist_name=selected_artist_name, k=k
+                )
+
+                seed_row = cf_catalog.loc[
+                    (cf_catalog["name"] == selected_song_name)
+                    & (cf_catalog["artist"] == selected_artist_name)
+                ]
+                seed_preview = (
+                    seed_row["spotify_preview_url"].iloc[0] if not seed_row.empty else None
+                )
+
+                if recs.empty:
+                    st.error(
+                        f"""Sorry, we couldn't find "{selected_song_name}" by "{selected_artist_name}" in the CF index."""
+                    )
+                else:
+                    st.markdown("## Recommendations")
+                    self.display_recommendations(
+                        seed_name=selected_song_name,
+                        seed_artist=selected_artist_name,
+                        seed_preview_url=seed_preview,
+                        recommendations=recs,
+                    )
+
+        except Exception as e:
+            logger.error(f"Unexpected error in `handle_cf`: {e}.")
+            st.error("Something went wrong while generating CF recommendations. Please try again.")
 
     def run(self) -> None:
         """The orchestrator method that runs the app."""
         logger.info("Running the method `run`...")
         logger.info("Running the app...")
 
-        st.title("🎵 Welcome to the Spotify Song Recommender!")
-        st.write("Start typing a song name to get suggestions. We'll recommend similar songs 😉🎧")
+        st.title("Welcome to the Spotify Song Recommender!")
+        st.write("Start typing a song name to get suggestions. We'll recommend similar songs.")
 
-        # Load cleaned data
         cleaned_data = self.load_cleaned_data()
-
-        if "name" not in cleaned_data.columns or "artist" not in cleaned_data.columns:
-            st.error("The dataset must contain 'name' and 'artist' columns.")
+        if (
+            cleaned_data is None
+            or "name" not in cleaned_data.columns
+            or "artist" not in cleaned_data.columns
+        ):
+            st.error("The cleaned dataset must contain 'name' and 'artist' columns.")
             return
 
-        # Drop NaNs and create list of (name, artist) pairs
         cleaned_data = cleaned_data.dropna(subset=["name", "artist"])
         cleaned_data["name"] = cleaned_data["name"].astype(str)
         cleaned_data["artist"] = cleaned_data["artist"].astype(str)
 
-        # User types a search string
-        typed_input = st.text_input("🔎 Type a song name and press enter/return:")
+        cf_catalog = self.load_cf_catalog()
+        if cf_catalog is not None:
+            cf_catalog = cf_catalog.dropna(subset=["name", "artist"])
+            cf_catalog["name"] = cf_catalog["name"].astype(str)
+            cf_catalog["artist"] = cf_catalog["artist"].astype(str)
 
-        # Filter entries where input matches the song name
-        filtered_df = (
-            cleaned_data[cleaned_data["name"].str.contains(typed_input.lower(), na=False)]
-            if typed_input
-            else pd.DataFrame()
+        filtering_type = st.selectbox(
+            "Select the recommendation strategy:",
+            ["Content-Based Filtering", "Collaborative Filtering"],
+            index=0,
         )
 
-        # Build display labels and mapping to lowercase song names
-        display_labels = []
-        label_to_name_map = {}
-
-        for _, row in filtered_df.iterrows():
-            title_case_label = f'{row["name"].title()} — {row["artist"].title()}'
-            display_labels.append(title_case_label)
-            label_to_name_map[title_case_label] = row["name"]  # keep original lowercase song name
-
-        selected_label = None
-        if display_labels:
-            selected_label = st.selectbox("🎶 Matching songs, pick yours:", sorted(display_labels))
-        elif typed_input:
-            st.warning("No matching songs found. Please try a different input.")
-
-        # Number of recommendations
-        k = st.selectbox("🔢 How many recommendations do you want?", [5, 10, 15, 20], index=1)
-
-        # Trigger recommendations
-        if selected_label and st.button("🚀 Get Recommendations"):
-            selected_song_name = label_to_name_map[selected_label]
-            logger.info(f'User selected "{selected_song_name}" with k={k}.')
-            self.handle_recommendations(
-                song_name=selected_song_name, k=k, cleaned_data=cleaned_data
-            )
+        if filtering_type == "Content-Based Filtering":
+            self.handle_cbf(cleaned_data=cleaned_data)
+        else:
+            if cf_catalog is None or cf_catalog.empty:
+                st.error(
+                    "Collaborative filtering artifacts are missing. "
+                    "Please run the CF pipeline to generate the filtered catalog and interaction matrix."
+                )
+            else:
+                self.handle_cf(cf_catalog=cf_catalog)
 
         logger.info("App ran successfully.")
 
 
 if __name__ == "__main__":
     app = SpotifyRecommenderApp(
-        cleaned_data_path=CLEANED_SONGS_DATA, transformed_data_path=TRANSFORMED_SONGS_DATA_CBF
+        cleaned_data_path=CLEANED_SONGS_DATA,
+        transformed_data_path=TRANSFORMED_SONGS_DATA_CBF,
     )
     app.run()

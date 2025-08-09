@@ -123,7 +123,9 @@ class Recommender:
                 input_song=input_song_vector, all_songs=transformed_data
             )
 
-            top_k_most_similar_songs_idxs = np.argsort(similarity_scores.ravel())[::-1][: k + 1]
+            # top_k_most_similar_songs_idxs = np.argsort(similarity_scores.ravel())[::-1][: k + 1]
+            ordered = np.argsort(similarity_scores.ravel())[::-1]
+            top_k_most_similar_songs_idxs = ordered[ordered != song_idx][:k]
             top_k_most_similar_songs_name = cleaned_data.loc[top_k_most_similar_songs_idxs]
             top_k_most_similar_songs_df = top_k_most_similar_songs_name[
                 ["name", "artist", "spotify_preview_url"]
