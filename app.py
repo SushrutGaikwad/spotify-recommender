@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+import numpy as np
 
 from pathlib import Path
 from loguru import logger
@@ -72,6 +73,9 @@ class SpotifyRecommenderApp:
 
         logger.info("`SpotifyRecommenderApp` object successfully instantiated.")
 
+    # --------------------------
+    # Disk loading (single-use)
+    # --------------------------
     def load_cleaned_data(self) -> pd.DataFrame | None:
         """Loads the cleaned data.
 
@@ -91,11 +95,7 @@ class SpotifyRecommenderApp:
             st.error("An error occurred while loading the data.")
 
     def load_transformed_data(self) -> spmatrix | None:
-        """Loads the transformed data (content-based).
-
-        Returns:
-            spmatrix | None: Transformed data.
-        """
+        """Loads the transformed data (content-based, FULL 50k+ matrix)."""
         try:
             logger.info("Running the method `load_transformed_data`...")
             logger.info(f"Loading transformed data from '{self.transformed_data_path}'...")
@@ -109,11 +109,7 @@ class SpotifyRecommenderApp:
             st.error("An error occurred while loading the data.")
 
     def load_cf_catalog(self) -> pd.DataFrame | None:
-        """Loads the filtered catalog used by collaborative filtering.
-
-        Returns:
-            pd.DataFrame | None: Filtered songs catalog for collaborative filtering.
-        """
+        """Loads the filtered catalog used by collaborative filtering."""
         try:
             logger.info("Running the method `load_cf_catalog`...")
             logger.info(f"Loading CF filtered catalog from '{COLLAB_FILTERED_SONGS_DATA}'...")
@@ -140,19 +136,116 @@ class SpotifyRecommenderApp:
             logger.error(f"Unexpected error in `load_hybrid_catalog`: {e}.")
             st.error("An error occurred while loading hybrid recommendation data.")
 
+    # ------------------------------------
+    # Session-state: load artifacts once
+    # ------------------------------------
+    def _ensure_session_artifacts(self) -> None:
+        """Load all heavy artifacts once per session into st.session_state."""
+        ss = st.session_state
+
+        # Cleaned data
+        if "cleaned_data" not in ss:
+            df = self.load_cleaned_data()
+            if df is not None:
+                df = df.dropna(subset=["name", "artist"])
+                df["name"] = df["name"].astype(str)
+                df["artist"] = df["artist"].astype(str)
+            ss.cleaned_data = df
+
+        # CF catalog
+        if "cf_catalog" not in ss:
+            df = self.load_cf_catalog()
+            if df is not None:
+                df = df.dropna(subset=["name", "artist"])
+                df["name"] = df["name"].astype(str)
+                df["artist"] = df["artist"].astype(str)
+            ss.cf_catalog = df
+
+        # Hybrid catalog
+        if "hybrid_catalog" not in ss:
+            df = self.load_hybrid_catalog()
+            if df is not None:
+                df = df.dropna(subset=["name", "artist"])
+                df["name"] = df["name"].astype(str)
+                df["artist"] = df["artist"].astype(str)
+            ss.hybrid_catalog = df
+
+        # FULL CBF features matrix (50,683 rows) — used by the standalone CBF recommender
+        if "X_cbf_full" not in ss:
+            ss.X_cbf_full = self.load_transformed_data()
+
+        # HYBRID-aligned CBF features matrix (≈30,459 rows) — must align with HYBRID_FILTERED_SONGS_SORTED
+        if "X_hybrid_cbf" not in ss:
+            try:
+                ss.X_hybrid_cbf = load_npz(HYBRID_TRANSFORMED_CBF_NPZ)
+            except Exception:
+                ss.X_hybrid_cbf = None
+
+        # CF artifacts (track ids + interaction matrix)
+        if "cf_track_ids" not in ss:
+            try:
+                ss.cf_track_ids = np.load(COLLAB_TRACK_IDS_NPY, allow_pickle=True)
+            except Exception:
+                ss.cf_track_ids = None
+
+        if "X_cf" not in ss:
+            try:
+                ss.X_cf = load_npz(COLLAB_INTERACTION_MATRIX_NPZ)
+            except Exception:
+                ss.X_cf = None
+
+        # Persist recommender instances (so we don't rebuild)
+        if "recommender_cbf" not in ss:
+            ss.recommender_cbf = self.recommender_cbf
+        if "recommender_cf" not in ss:
+            ss.recommender_cf = self.recommender_cf
+        if "recommender_hybrid" not in ss:
+            ss.recommender_hybrid = self.recommender_hybrid
+
+    def _patch_recommenders_to_use_session(self) -> None:
+        """Monkey-patch recommenders to use in-memory artifacts instead of reloading from disk."""
+        ss = st.session_state
+
+        # ---- CBF: return cleaned_data and FULL CBF features directly from memory ----
+        if ss.cleaned_data is not None and ss.X_cbf_full is not None:
+
+            def _cbf_load_cleaned():
+                return ss.cleaned_data
+
+            def _cbf_load_transformed():
+                return ss.X_cbf_full
+
+            ss.recommender_cbf.load_cleaned_data = _cbf_load_cleaned  # type: ignore[attr-defined]
+            ss.recommender_cbf.load_transformed_data = _cbf_load_transformed  # type: ignore[attr-defined]
+
+        # ---- CF: return (cf_catalog, track_ids, interaction_matrix) from memory ----
+        if ss.cf_catalog is not None and ss.cf_track_ids is not None and ss.X_cf is not None:
+
+            def _cf_loader():
+                return ss.cf_catalog, ss.cf_track_ids, ss.X_cf
+
+            ss.recommender_cf.load_artifacts = _cf_loader  # type: ignore[attr-defined]
+
+        # ---- Hybrid: (hybrid_catalog_sorted, HYBRID CBF features, track_ids, interaction_matrix) ----
+        if (
+            ss.hybrid_catalog is not None
+            and ss.X_hybrid_cbf is not None
+            and ss.cf_track_ids is not None
+            and ss.X_cf is not None
+        ):
+
+            def _hybrid_loader():
+                return ss.hybrid_catalog, ss.X_hybrid_cbf, ss.cf_track_ids, ss.X_cf
+
+            ss.recommender_hybrid.load_artifacts = _hybrid_loader  # type: ignore[attr-defined]
+
+    # -----------------------
+    # Recommendation helpers
+    # -----------------------
     def get_cbf_recommendations(
         self, song_name: str, k: int, cleaned_data: pd.DataFrame
     ) -> pd.DataFrame:
-        """Generates content-based filtering recommendations.
-
-        Args:
-            song_name (str): Name of the song to generate recommendations from.
-            k (int): The number of recommendations to generate.
-            cleaned_data (pd.DataFrame): The cleaned data.
-
-        Returns:
-            pd.DataFrame: Recommendations.
-        """
+        """Generates content-based filtering recommendations."""
         try:
             logger.info("Running the method `get_cbf_recommendations`...")
             logger.info(f'Fetching k={k} CBF recommendations for "{song_name}"...')
@@ -160,7 +253,9 @@ class SpotifyRecommenderApp:
 
             if (cleaned_data["name"] == song_name_lower).any():
                 with tqdm(total=1, desc="Generating CBF Recommendations", unit="step") as pbar:
-                    recommendations = self.recommender_cbf.recommend(song_name=song_name, k=k)
+                    recommendations = st.session_state.recommender_cbf.recommend(
+                        song_name=song_name, k=k
+                    )
                     pbar.update(1)
                 logger.info(f"Successfully generated {k} CBF recommendations.")
                 return recommendations
@@ -172,16 +267,7 @@ class SpotifyRecommenderApp:
             return pd.DataFrame()
 
     def get_cf_recommendations(self, song_name: str, artist_name: str, k: int) -> pd.DataFrame:
-        """Generates collaborative filtering recommendations.
-
-        Args:
-            song_name (str): Name of the seed song.
-            artist_name (str): Artist of the seed song.
-            k (int): The number of recommendations to generate.
-
-        Returns:
-            pd.DataFrame: Recommendations.
-        """
+        """Generates collaborative filtering recommendations."""
         try:
             logger.info("Running the method `get_cf_recommendations`...")
             logger.info(
@@ -189,7 +275,7 @@ class SpotifyRecommenderApp:
             )
 
             with tqdm(total=1, desc="Generating CF Recommendations", unit="step") as pbar:
-                recommendations = self.recommender_cf.recommend(
+                recommendations = st.session_state.recommender_cf.recommend(
                     song_name=song_name, artist_name=artist_name, k=k
                 )
                 pbar.update(1)
@@ -202,15 +288,11 @@ class SpotifyRecommenderApp:
             logger.error(f"Unexpected error in `get_cf_recommendations`: {e}.")
             return pd.DataFrame()
 
+    # -----------------------
+    # UI helpers
+    # -----------------------
     def _build_display_labels(self, df: pd.DataFrame) -> tuple[list[str], dict]:
-        """Builds display labels and a mapping for selection.
-
-        Args:
-            df (pd.DataFrame): DataFrame with 'name' and 'artist' columns.
-
-        Returns:
-            tuple[list[str], dict]: (labels, label->(name, artist)) mapping.
-        """
+        """Builds display labels and a mapping for selection."""
         try:
             logger.info("Running the helper `_build_display_labels`...")
             display_labels, label_map = [], {}
@@ -231,14 +313,7 @@ class SpotifyRecommenderApp:
         seed_preview_url: str | None,
         recommendations: pd.DataFrame,
     ) -> None:
-        """Displays the seed track first and then the recommendations.
-
-        Args:
-            seed_name (str): Seed song name (title-cased for display is handled here).
-            seed_artist (str): Seed artist name.
-            seed_preview_url (str | None): Preview URL for the seed (can be None).
-            recommendations (pd.DataFrame): Recommendations (seed excluded).
-        """
+        """Displays the seed track first and then the recommendations."""
         try:
             logger.info("Running the method `display_recommendations`...")
 
@@ -276,16 +351,15 @@ class SpotifyRecommenderApp:
             logger.error(f"Unexpected error in `display_recommendations`: {e}.")
             st.error("An error occurred while displaying recommendations.")
 
+    # -----------------------
+    # Mode handlers
+    # -----------------------
     def handle_cbf(self, cleaned_data: pd.DataFrame) -> None:
-        """Handles the CBF UI flow and displays recommendations.
-
-        Args:
-            cleaned_data (pd.DataFrame): Cleaned data used for CBF searching.
-        """
+        """Handles the CBF UI flow and displays recommendations."""
         try:
             logger.info("Running the method `handle_cbf`...")
 
-            typed_input = st.text_input("Type a song name and press enter/return:")
+            typed_input = st.text_input("Type a song name and press enter/return:").strip()
             filtered_df = (
                 cleaned_data[
                     cleaned_data["name"].str.contains(typed_input.lower(), na=False, regex=False)
@@ -343,15 +417,11 @@ class SpotifyRecommenderApp:
             )
 
     def handle_cf(self, cf_catalog: pd.DataFrame) -> None:
-        """Handles the CF UI flow and displays recommendations.
-
-        Args:
-            cf_catalog (pd.DataFrame): Filtered catalog used for CF searching.
-        """
+        """Handles the CF UI flow and displays recommendations."""
         try:
             logger.info("Running the method `handle_cf`...")
 
-            typed_input = st.text_input("Type a song name and press enter/return:")
+            typed_input = st.text_input("Type a song name and press enter/return:").strip()
             filtered_df = (
                 cf_catalog[
                     cf_catalog["name"].str.contains(typed_input.lower(), na=False, regex=False)
@@ -408,19 +478,22 @@ class SpotifyRecommenderApp:
             logger.error(f"Unexpected error in `handle_cf`: {e}.")
             st.error("Something went wrong while generating CF recommendations. Please try again.")
 
-    def handle_hybrid(self, hybrid_catalog: pd.DataFrame) -> None:
-        """Handles the Hybrid UI flow and displays recommendations.
+    def handle_hybrid(self, hybrid_catalog: pd.DataFrame, cleaned_data: pd.DataFrame) -> None:
+        """Handles the Hybrid UI (with cold-start fallback to CBF) and displays recommendations.
 
-        Args:
-            hybrid_catalog (pd.DataFrame): Sorted CF universe used by Hybrid searching.
+        If the selected seed exists in the CF/hybrid universe -> run Hybrid.
+        Otherwise (cold start) -> run CBF only.
         """
         try:
             logger.info("Running the method `handle_hybrid`...")
 
-            typed_input = st.text_input("Type a song name and press enter/return:")
+            # Search across the FULL songs catalog so users can pick cold-start items too
+            typed_input = st.text_input(
+                "Type a song name and press enter/return:", key="hybrid_query"
+            ).strip()
             filtered_df = (
-                hybrid_catalog[
-                    hybrid_catalog["name"].str.contains(typed_input.lower(), na=False, regex=False)
+                cleaned_data[
+                    cleaned_data["name"].str.contains(typed_input.lower(), na=False, regex=False)
                 ]
                 if typed_input
                 else pd.DataFrame()
@@ -432,14 +505,18 @@ class SpotifyRecommenderApp:
 
             labels, label_map = self._build_display_labels(filtered_df)
             selected_label = (
-                st.selectbox("Matching songs found. Pick yours:", sorted(labels))
+                st.selectbox(
+                    "Matching songs found. Pick yours:", sorted(labels), key="hybrid_pick"
+                )
                 if labels
                 else None
             )
 
-            k = st.selectbox("How many recommendations do you want?", [5, 10, 15, 20], index=1)
+            k = st.selectbox(
+                "How many recommendations do you want?", [5, 10, 15, 20], index=1, key="hybrid_k"
+            )
 
-            # Single slider for CBF weight; CF weight auto-adjusts to sum to 1.
+            # Weight slider (only used if we actually do Hybrid)
             default_w_cbf = min(max(HYBRID_WEIGHT_CBF, 0.0), 1.0)
             w_cbf = st.slider(
                 r"Select a $w_{\text{cbf}}$ value (higher ⇒ more similar songs; lower ⇒ more songs from people that have listened to the same song):",
@@ -447,6 +524,7 @@ class SpotifyRecommenderApp:
                 max_value=1.0,
                 value=default_w_cbf,
                 step=0.01,
+                key="hybrid_w_cbf",
             )
             w_cf = 1.0 - w_cbf
             st.latex(
@@ -454,49 +532,88 @@ class SpotifyRecommenderApp:
                 rf"w_{{\text{{cf}}}} = {w_cf:.2f} \quad (\text{{sum}} = 1.00)"
             )
 
-            if selected_label and st.button("Get Recommendations!"):
+            if selected_label and st.button("Get Recommendations!", key="hybrid_go"):
                 selected_song_name, selected_artist_name = label_map[selected_label]
-                logger.info(
-                    f'Hybrid selected "{selected_song_name}" by "{selected_artist_name}" '
-                    f"with k={k}, w_cbf={w_cbf:.2f}, w_cf={w_cf:.2f}."
-                )
 
-                with tqdm(total=1, desc="Generating Hybrid Recommendations", unit="step") as pbar:
-                    recs = self.recommender_hybrid.recommend(
-                        song_name=selected_song_name,
-                        artist_name=selected_artist_name,
-                        k=k,
-                        weight_cbf=w_cbf,
-                        weight_cf=w_cf,
-                    )
-                    pbar.update(1)
-
-                seed_row = hybrid_catalog.loc[
+                # Is this seed in the Hybrid/CF universe?
+                in_hybrid = not hybrid_catalog.loc[
                     (hybrid_catalog["name"] == selected_song_name)
                     & (hybrid_catalog["artist"] == selected_artist_name)
-                ]
-                seed_preview = (
-                    seed_row["spotify_preview_url"].iloc[0] if not seed_row.empty else None
-                )
+                ].empty
 
-                if recs.empty:
-                    st.error(
-                        f"""Sorry, we couldn't find "{selected_song_name}" by "{selected_artist_name}" in the Hybrid index."""
+                if in_hybrid:
+                    logger.info(
+                        f'Hybrid path for "{selected_song_name}" by "{selected_artist_name}" '
+                        f"(k={k}, w_cbf={w_cbf:.2f}, w_cf={w_cf:.2f})."
                     )
+                    with st.spinner("Generating hybrid recommendations..."):
+                        recs = st.session_state.recommender_hybrid.recommend(
+                            song_name=selected_song_name,
+                            artist_name=selected_artist_name,
+                            k=k,
+                            weight_cbf=w_cbf,
+                            weight_cf=w_cf,
+                        )
+
+                    seed_row = hybrid_catalog.loc[
+                        (hybrid_catalog["name"] == selected_song_name)
+                        & (hybrid_catalog["artist"] == selected_artist_name)
+                    ]
+                    seed_preview = (
+                        seed_row["spotify_preview_url"].iloc[0] if not seed_row.empty else None
+                    )
+
+                    if recs.empty:
+                        st.error(
+                            f"""Sorry, we couldn't find "{selected_song_name}" by "{selected_artist_name}" in the Hybrid index."""
+                        )
+                    else:
+                        st.markdown("## Recommendations")
+                        self.display_recommendations(
+                            seed_name=selected_song_name,
+                            seed_artist=selected_artist_name,
+                            seed_preview_url=seed_preview,
+                            recommendations=recs,
+                        )
                 else:
-                    st.markdown("## Recommendations")
-                    self.display_recommendations(
-                        seed_name=selected_song_name,
-                        seed_artist=selected_artist_name,
-                        seed_preview_url=seed_preview,
-                        recommendations=recs,
+                    # Cold start → fall back to CBF only
+                    logger.info(
+                        f'Cold-start path for "{selected_song_name}" by "{selected_artist_name}" -> CBF fallback (k={k}).'
                     )
+                    st.info(
+                        r"This looks like a **cold start** track (no listening history). "
+                        r"We'll use content-based filtering only: $w_{\text{cbf}}=1,\ w_{\text{cf}}=0$."
+                    )
+
+                    with st.spinner("Generating content-based recommendations..."):
+                        recs = self.get_cbf_recommendations(
+                            song_name=selected_song_name, k=k, cleaned_data=cleaned_data
+                        )
+
+                    seed_row = cleaned_data.loc[
+                        (cleaned_data["name"] == selected_song_name)
+                        & (cleaned_data["artist"] == selected_artist_name)
+                    ]
+                    seed_preview = (
+                        seed_row["spotify_preview_url"].iloc[0] if not seed_row.empty else None
+                    )
+
+                    if recs.empty:
+                        st.error(
+                            f"""Sorry, we couldn't find recommendations for "{selected_song_name}" in the CBF database."""
+                        )
+                    else:
+                        st.markdown("## Recommendations")
+                        self.display_recommendations(
+                            seed_name=selected_song_name,
+                            seed_artist=selected_artist_name,
+                            seed_preview_url=seed_preview,
+                            recommendations=recs,
+                        )
 
         except Exception as e:
             logger.error(f"Unexpected error in `handle_hybrid`: {e}.")
-            st.error(
-                "Something went wrong while generating hybrid recommendations. Please try again."
-            )
+            st.error("Something went wrong while generating recommendations. Please try again.")
 
     def run(self) -> None:
         """The orchestrator method that runs the app."""
@@ -506,7 +623,28 @@ class SpotifyRecommenderApp:
         st.title("Welcome to the Spotify Song Recommender!")
         st.write("Start typing a song name to get suggestions. We'll recommend similar songs.")
 
-        cleaned_data = self.load_cleaned_data()
+        # Load once per session and patch recommenders to reuse in-memory artifacts
+        self._ensure_session_artifacts()
+        self._patch_recommenders_to_use_session()
+
+        # Optional sanity check to catch alignment issues early
+        if (
+            st.session_state.hybrid_catalog is not None
+            and st.session_state.X_hybrid_cbf is not None
+            and st.session_state.X_hybrid_cbf.shape[0] != st.session_state.hybrid_catalog.shape[0]
+        ):
+            st.error(
+                f"Hybrid artifacts misaligned: features rows="
+                f"{st.session_state.X_hybrid_cbf.shape[0]} vs songs rows="
+                f"{st.session_state.hybrid_catalog.shape[0]}. "
+                "Re-run the hybrid feature preparation stage."
+            )
+            return
+
+        cleaned_data = st.session_state.cleaned_data
+        cf_catalog = st.session_state.cf_catalog
+        hybrid_catalog = st.session_state.hybrid_catalog
+
         if (
             cleaned_data is None
             or "name" not in cleaned_data.columns
@@ -514,22 +652,6 @@ class SpotifyRecommenderApp:
         ):
             st.error("The cleaned dataset must contain 'name' and 'artist' columns.")
             return
-
-        cleaned_data = cleaned_data.dropna(subset=["name", "artist"])
-        cleaned_data["name"] = cleaned_data["name"].astype(str)
-        cleaned_data["artist"] = cleaned_data["artist"].astype(str)
-
-        cf_catalog = self.load_cf_catalog()
-        if cf_catalog is not None:
-            cf_catalog = cf_catalog.dropna(subset=["name", "artist"])
-            cf_catalog["name"] = cf_catalog["name"].astype(str)
-            cf_catalog["artist"] = cf_catalog["artist"].astype(str)
-
-        hybrid_catalog = self.load_hybrid_catalog()
-        if hybrid_catalog is not None:
-            hybrid_catalog = hybrid_catalog.dropna(subset=["name", "artist"])
-            hybrid_catalog["name"] = hybrid_catalog["name"].astype(str)
-            hybrid_catalog["artist"] = hybrid_catalog["artist"].astype(str)
 
         filtering_type = st.selectbox(
             "Select the recommendation strategy:",
@@ -554,7 +676,7 @@ class SpotifyRecommenderApp:
                     "Please run the hybrid pipeline to generate the sorted catalog and hybrid features."
                 )
             else:
-                self.handle_hybrid(hybrid_catalog=hybrid_catalog)
+                self.handle_hybrid(hybrid_catalog=hybrid_catalog, cleaned_data=cleaned_data)
 
         logger.info("App ran successfully.")
 
