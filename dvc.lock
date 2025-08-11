@@ -65,8 +65,8 @@ stages:
       size: 4517758
     - path: spotify_recommender/content_based_filtering/recommendation.py
       hash: md5
-      md5: ef88797e837e12a235eda049124315f3
-      size: 6302
+      md5: b046ed203d44278fb6f9696dace47131
+      size: 6449
   data_filtering_collab:
     cmd: python spotify_recommender/collaborative_filtering/data_filtering.py
     deps:
@@ -126,3 +126,50 @@ stages:
       hash: md5
       md5: 3d7aae3129812e6d4ad130dc9c31da53
       size: 5183
+  feature_preparation_hybrid:
+    cmd: python spotify_recommender/hybrid_recommendation/feature_preparation.py
+    deps:
+    - path: data/interim/collab_filtered_songs.csv
+      hash: md5
+      md5: c0fc661e2f86835ab81094d000285e93
+      size: 8259927
+    - path: models/trained_transformer_CBF.joblib
+      hash: md5
+      md5: 8ce89200467754819839a9037ad1bde1
+      size: 142381
+    - path: spotify_recommender/hybrid_recommendation/feature_preparation.py
+      hash: md5
+      md5: 2a5fff4cd27238166f0eb28d3998229d
+      size: 6786
+    outs:
+    - path: data/interim/collab_filtered_songs_sorted.csv
+      hash: md5
+      md5: a0a00dc447525323f6da922ee7138cc0
+      size: 8259927
+    - path: data/processed/hybrid_transformed_cbf.npz
+      hash: md5
+      md5: 3437b0716fbc5eeb31f287a89d84f1ed
+      size: 2975077
+  hybrid_recommendation:
+    cmd: python spotify_recommender/hybrid_recommendation/recommendation.py
+    deps:
+    - path: data/interim/collab_filtered_songs_sorted.csv
+      hash: md5
+      md5: a0a00dc447525323f6da922ee7138cc0
+      size: 8259927
+    - path: data/processed/collab_interaction_matrix.npz
+      hash: md5
+      md5: 53f8fa1e7cec19856a6b2bc60ce8881f
+      size: 32311353
+    - path: data/processed/collab_track_ids.npy
+      hash: md5
+      md5: 4a52e4cb6bae6b0126c1344dac7c7686
+      size: 640058
+    - path: data/processed/hybrid_transformed_cbf.npz
+      hash: md5
+      md5: 3437b0716fbc5eeb31f287a89d84f1ed
+      size: 2975077
+    - path: spotify_recommender/hybrid_recommendation/recommendation.py
+      hash: md5
+      md5: 1a4d3bf487074095dcc0a15bf3a5b14d
+      size: 14744

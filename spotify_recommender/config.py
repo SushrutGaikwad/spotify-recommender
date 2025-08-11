@@ -75,3 +75,18 @@ COLLAB_K: int = 10
 COLLAB_MIN_PLAYS: float = 0.0  # if you want to drop super-low counts later
 COLLAB_FILTERING_SONG_NAME: str = "Numb"
 COLLAB_FILTERING_ARTIST_NAME: str = "Linkin Park"
+
+# For hybrid recommender
+
+# Paths
+HYBRID_FILTERED_SONGS_SORTED = INTERIM_DATA_DIR / "collab_filtered_songs_sorted.csv"
+HYBRID_TRANSFORMED_CBF_NPZ = PROCESSED_DATA_DIR / "hybrid_transformed_cbf.npz"
+
+# Defaults (tune as needed)
+HYBRID_K: int = 10
+HYBRID_SONG_NAME: str = "Love Story"
+HYBRID_ARTIST_NAME: str = "Taylor Swift"
+
+# Weights (independent; you can enforce sum=1 in UI if you want)
+HYBRID_WEIGHT_CBF: float = 0.30
+HYBRID_WEIGHT_CF: float = 0.70

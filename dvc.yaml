@@ -56,3 +56,22 @@ stages:
       - data/interim/collab_filtered_songs.csv
       - data/processed/collab_track_ids.npy
       - data/processed/collab_interaction_matrix.npz
+
+  feature_preparation_hybrid:
+    cmd: python spotify_recommender/hybrid_recommendation/feature_preparation.py
+    deps:
+      - spotify_recommender/hybrid_recommendation/feature_preparation.py
+      - models/trained_transformer_CBF.joblib
+      - data/interim/collab_filtered_songs.csv
+    outs:
+      - data/interim/collab_filtered_songs_sorted.csv
+      - data/processed/hybrid_transformed_cbf.npz
+
+  hybrid_recommendation:
+    cmd: python spotify_recommender/hybrid_recommendation/recommendation.py
+    deps:
+      - spotify_recommender/hybrid_recommendation/recommendation.py
+      - data/interim/collab_filtered_songs_sorted.csv
+      - data/processed/hybrid_transformed_cbf.npz
+      - data/processed/collab_track_ids.npy
+      - data/processed/collab_interaction_matrix.npz
