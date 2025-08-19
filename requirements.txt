@@ -21,4 +21,5 @@ dask[dataframe]
 graphviz
 missingno
 category_encoders
+pytest
 -e .

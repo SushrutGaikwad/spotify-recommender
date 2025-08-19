@@ -8,3 +8,4 @@ streamlit
 dvc
 dask[dataframe]
 dvc[s3]
+pytest
