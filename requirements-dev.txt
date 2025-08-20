@@ -9,3 +9,6 @@ dvc
 dask[dataframe]
 dvc[s3]
 pytest
+loguru
+tqdm
+python-dotenv
